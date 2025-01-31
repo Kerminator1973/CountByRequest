@@ -10,15 +10,18 @@ using CountByRequest.Views;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Avalonia.Threading;
 
 namespace CountByRequest;
 
-/*
+
+// Сервис, основная задача которого обеспечивать доступ из потока обработки http-запросов (ASP.NET Core)
+// к потоку пользовательского интерфейса (Avalonia)
 public class MainWindowService
 {
-    public MainWindow MainWindow { get; set; }
+    public required MainWindow MainWindow { get; set; }
 }
-*/
+
 
 public partial class App : Application
 {
@@ -31,10 +34,15 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            var mainWindow = new MainWindow
             {
                 DataContext = new MainViewModel()
             };
+
+            desktop.MainWindow = mainWindow;
+
+            // Запускаем HTTP-сервер и передаём ссылку на главное окно приложения Avalonia
+            StartHttpServer(mainWindow);
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
@@ -44,13 +52,10 @@ public partial class App : Application
             };
         }
 
-        // Start the HTTP server
-        StartHttpServer();
-
         base.OnFrameworkInitializationCompleted();
     }
 
-    private void StartHttpServer()
+    private void StartHttpServer(MainWindow mainWindow)
     {
         var host = Host.CreateDefaultBuilder()
             .ConfigureWebHostDefaults(webBuilder =>
@@ -62,9 +67,18 @@ public partial class App : Application
             })
             .ConfigureServices(services =>
             {
-                //services.AddSingleton<MainWindowService>(); // Register the MainWindowService
+                // Регистрируем сервис (DI) для передачи ссылки на главное окно
+                // в ASP.NET Core
+                services.AddSingleton<MainWindowService>();
             })
             .Build();
+
+        // Получаем сервис и сохраняем в нём ссылку на главное окно приложения
+        var mainWindowService = host.Services.GetService<MainWindowService>();
+        if (mainWindowService != null)
+        {
+            mainWindowService.MainWindow = mainWindow;
+        }
 
         host.Start();
     }
@@ -79,23 +93,22 @@ public class Startup
             // Обрабатываем Http-запрос, например: http://localhost:8080
             await context.Response.WriteAsync("Hello from Avalonia HTTP Server!");
 
-/*
-            // Access the IServiceProvider from the IApplicationBuilder
-            var serviceProvider = app.ApplicationServices;
-
-            // Resolve the MainWindowService
-            var mainWindowService = serviceProvider.GetService<MainWindowService>();
-
-            if (mainWindowService?.MainWindow != null)
+            // Запускаем код в потоке пользовательского интерфейса
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var viewModel = mainWindowService.MainWindow.DataContext as MainViewModel;
-                if (viewModel != null)
+                // Получаем ссылку на главное окно приложения
+                var mainWindowService = app.ApplicationServices.GetService<MainWindowService>();
+                if (mainWindowService?.MainWindow != null)
                 {
-                    // Update the ViewModel's Message property
-                    viewModel.Message = "Updated from HTTP Request";
+                    var viewModel = mainWindowService.MainWindow.DataContext as MainViewModel;
+                    if (viewModel != null)
+                    {
+                        // Изменяем свойство модели, которое должно сразу же отразиться
+                        // в пользовательском интерфейсе
+                        viewModel.Message = "Updated from HTTP Request";
+                    }
                 }
-            }
-*/
+            });
         });
     }
 }
