@@ -105,7 +105,10 @@ public class Startup
                     {
                         // Изменяем свойство модели, которое должно сразу же отразиться
                         // в пользовательском интерфейсе
-                        viewModel.Message = "Updated from HTTP Request";
+                        viewModel.Message = "When you finish counting, press the button";
+
+                        // Активируем кнопку завершения пересчётов
+                        viewModel.IsButtonEnabled = true;
                     }
                 }
             });

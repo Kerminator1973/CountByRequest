@@ -12,7 +12,10 @@
     <vm:MainViewModel />
   </Design.DataContext>
 
-	<StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+	<StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Center">
         <TextBlock Text="{Binding Message}" />
+		<Button Content="Send Results"
+            IsEnabled="{Binding IsButtonEnabled}"
+            Click="OnButtonClick"/>
 	</StackPanel>
 </UserControl>

@@ -11,4 +11,12 @@ public class MainViewModel : ViewModelBase
         get => _message;
         set => this.RaiseAndSetIfChanged(ref _message, value);
     }
+
+    //
+    private bool _isButtonEnabled = false;
+    public bool IsButtonEnabled
+    {
+        get => _isButtonEnabled;
+        set => this.RaiseAndSetIfChanged(ref _isButtonEnabled, value);
+    }
 }
