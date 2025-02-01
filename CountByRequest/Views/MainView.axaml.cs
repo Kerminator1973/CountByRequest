@@ -35,8 +35,8 @@ public partial class MainView : UserControl
 
     public async Task SendPost()
     {
-        var poseSender = new PostSender();
-        var poseRequest = new PostRequest
+        var postSender = new PostSender();
+        var postRequest = new PostRequest
         {
             Currency = "USD",
             Notes = 50,
@@ -44,7 +44,7 @@ public partial class MainView : UserControl
         };
 
         // Предполагаем, что сервер находится на этом же компьютере и слушает порт 5000
-        string url = "http://localhost:5000";
-        await poseSender.SendPostAsync(poseRequest, url);
+        string url = "http://localhost:5000/api/data";
+        await postSender.SendPostAsync(postRequest, url);
     }
 }
