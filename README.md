@@ -63,3 +63,13 @@ npm config get https-proxy
 ```
 
 При получении запроса, web-сервер выведет информацию о нём в консоль, в которой сервер был запущен.
+
+## сборка автономного приложения
+
+Для сборки автономного Desktop-приложения следует в папке "CountByRequest.Desktop" выполнить команду:
+
+```shell
+dotnet publish -c Release -r win-x64 --self-contained
+```
+
+Результат сборки должен появиться в папке "\CountByRequest.Desktop\bin\Release\net8.0\win-x64\publish".
