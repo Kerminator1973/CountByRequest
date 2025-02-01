@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using CountByRequest.Utilites;
 using CountByRequest.ViewModels;
 using System.Threading;
@@ -22,12 +23,9 @@ public partial class MainView : UserControl
         {
             // Прячем кнопки
             viewModel.IsButtonEnabled = false;
-            viewModel.Message = "Done";
+            viewModel.Message = "Sending...";
 
             // Посылаем JSON с результатами пересчёта на банковский сервер.
-            
-            // TODO: сейчас мы не ждём завершения запроса, но нам будет нужно
-            // уведомить оператора о том, получилось ли выполнить операцию, или нет
             Thread postRequestThread = new Thread(() => SendPost());
             postRequestThread.Start();
         }
@@ -45,6 +43,14 @@ public partial class MainView : UserControl
 
         // Предполагаем, что сервер находится на этом же компьютере и слушает порт 5000
         string url = "http://localhost:5000/api/data";
-        await postSender.SendPostAsync(postRequest, url);
+        var result = await postSender.SendPostAsync(postRequest, url);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var viewModel = DataContext as MainViewModel;
+            if (viewModel != null) {
+                viewModel.Message = result;
+            }
+        });
     }
 }

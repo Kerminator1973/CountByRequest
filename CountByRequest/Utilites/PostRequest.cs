@@ -22,8 +22,9 @@ namespace CountByRequest.Utilites
             _httpClient = new HttpClient();
         }
 
-        public async Task SendPostAsync(PostRequest postRequest, string url)
+        public async Task<string> SendPostAsync(PostRequest postRequest, string url)
         {
+            string result = "Post request sent successfully.";
             try
             {
                 // Сериализуем экземпляр класса PostRequest в текстовую строку, содержащую JSON
@@ -34,19 +35,17 @@ namespace CountByRequest.Utilites
                 var response = await _httpClient.PostAsync(url, content);
 
                 // Проверяем результат - удалось ли доставить запрос на сервер
-                if (response.IsSuccessStatusCode)
+                if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine("Post request sent successfully.");
-                }
-                else
-                {
-                    Console.WriteLine($"Error sending post request: {response.StatusCode}");
+                    result = $"Error sending post request: {response.StatusCode}";
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception occurred: {ex.Message}");
+                result = $"Exception occurred: {ex.Message}";
             }
+
+            return result;
         }
     }
 }
