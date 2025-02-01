@@ -10,14 +10,6 @@
 
 Встроенный в desktop-приложение CountByRequest web-сервер обработает запрос и выведен на экран кнопку для завершения пересчёта. Как только кассир закончит пересчёт, этот пересчёт будет направлен в эмулятор банковской системы, как POST-запрос с JSON-документом: `http://localhost:5000/api/data`
 
-## Кратко об архитектуре desktop-приложения
-
-Для создания пользовательского интерфейса используется framework Avalonia.
-
-Для обработки внешних http-запросов, в приложение встроен web-сервер Kestrel и компоненты ASP.NET Core.
-
-Все компоненты являются open-source. Система может работать под Windows 10/11 и Linux.
-
 ## Что отсутствует в демонстрационной системе
 
 Не осуществляется подключение к реальной базе пересчётов, т.к. это требует развертывания стенда и использования дополнительного оборудования для наполнения базы данных.
@@ -73,3 +65,111 @@ dotnet publish -c Release -r win-x64 --self-contained
 ```
 
 Результат сборки должен появиться в папке "\CountByRequest.Desktop\bin\Release\net8.0\win-x64\publish".
+
+## Кратко об архитектуре desktop-приложения
+
+Для создания пользовательского интерфейса используется framework Avalonia.
+
+Для обработки внешних http-запросов, в приложение встроен web-сервер Kestrel и компоненты ASP.NET Core.
+
+Все компоненты являются open-source. Система может работать под Windows 10/11 и Linux.
+
+Приложение было создано по типовому шаблону desktop-приложений Avalonia.
+
+Метапакет Microsoft.AspNetCore.App для ASP.NET Core добавляет функционал web-сервера. Запуск Kestrel осуществляется в отдельном методе - StartHttpServer():
+
+```csharp
+public partial class App : Application
+{
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    public override void OnFrameworkInitializationCompleted()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var mainWindow = new MainWindow
+            {
+                DataContext = new MainViewModel()
+            };
+
+            desktop.MainWindow = mainWindow;
+
+            // Запускаем HTTP-сервер и передаём ссылку на главное окно приложения Avalonia
+            StartHttpServer(mainWindow);
+        }
+```
+
+При конфигурации сервиса можно указать порт, который будет слушать сервер Kestrel:
+
+```csharp
+private void StartHttpServer(MainWindow mainWindow)
+{
+    var host = Host.CreateDefaultBuilder()
+        .ConfigureWebHostDefaults(webBuilder =>
+        {
+            webBuilder.UseKestrel()
+                // Устанавливаем порт на котором мы будем слушать http-запросы
+                .UseUrls("http://0.0.0.0:8080") 
+                .UseStartup<Startup>();
+        })
+        .ConfigureServices(services =>
+        {
+            // Регистрируем сервис (DI) для передачи ссылки на главное окно
+            // в ASP.NET Core
+            services.AddSingleton<MainWindowService>();
+        })
+        .Build();
+
+    // Получаем сервис и сохраняем в нём ссылку на главное окно приложения
+    var mainWindowService = host.Services.GetService<MainWindowService>();
+    if (mainWindowService != null)
+    {
+        mainWindowService.MainWindow = mainWindow;
+    }
+
+    host.Start();
+}
+```
+
+В приведённом выше коде сохраняется ссылка на экземпляр главного окна приложения. Ссылка сохраняется в сервисе, который доступен через механизм Dependancy Injection. Ссылка на главное окно необходима для того, чтобы при получении http-запроса web-сервером можно было бы установливать атрибуты ViewModel, изменяя пользовательский интерфейс приложения Avalonia.
+
+Важно обратить внимание на тот факт, что http-запросы обрабатываются в отдельном рабочем потоке. Попытка напрямую изменять атрибуты ViewModel приводит к возникновению исключения. Чтобы добиться желаемого результата, необходимо выполнять изменения пользовательского интерфейса в потоке пользовательского интерфейса. Например:
+
+```csharp
+await Dispatcher.UIThread.InvokeAsync(() =>
+{
+    // ...
+
+    // Изменяем свойство модели, которое должно сразу же отразиться
+    // в пользовательском интерфейсе
+    viewModel.Message = "When you finish counting, press the button";
+
+    // Активируем кнопку завершения пересчётов
+    viewModel.IsButtonEnabled = true;
+
+    // ...
+});
+```
+
+При настройке сервера указывается Startup-класс, который добавляет middleware delegate, обрабатывающий http-запрос:
+
+```csharp
+public class Startup
+{
+    public void Configure(IApplicationBuilder app)
+    {
+        app.Run(async context =>
+        {
+            await context.Response.WriteAsync("Hello from Avalonia HTTP Server!");
+        });
+    }
+}
+```
+
+В Startup-классе часто определены два метода:
+
+- ConfigureServices(IServiceCollection services): в этом методе обычно регистрируются сервисы приложения, такие как: контекст базы данных, механизм аутентификации, и т.д. Регистрация осуществляется через контейнер Dependancy Injection
+- Configure(IApplicationBuilder app, IWebHostEnvironment env): этот метод определяет как приложение отвечает на HTTP-запросы, а также позволяет настроить middleware
